@@ -136,9 +136,12 @@ class TodoServiceTest {
         String title = "test_title";
         String description = "test_description";
         String newStatus = "IN_VALID";
+        String oldStatus = "NEW";
         Long id = 1L;
 
         TodoDTO todoDTORequest = getTodoDTOObject(title,description,newStatus,id);
+        Todo existingTodo = getTodoObject(title,description,oldStatus,id);
+        when(todoRepository.findById(id)).thenReturn(Optional.of(existingTodo));
         Exception exception = assertThrows(Exception.class, () -> {
             Todo latestUpdatedTodo = todoService.updateTodo(todoDTORequest);
         });

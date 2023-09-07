@@ -7,14 +7,17 @@ import com.quanloop.todo.todo.repository.TodoRepository;
 import com.quanloop.todo.util.GlobalConstant;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
 
-import static com.quanloop.todo.util.GlobalConstant.TodoValidateErrors.STATUS_IS_NOT_VALID;
-import static com.quanloop.todo.util.GlobalConstant.TodoValidateErrors.TODO_NOT_FOUND;
+import static com.quanloop.todo.util.GlobalConstant.INITIAL_STATUS;
+import static com.quanloop.todo.util.GlobalConstant.STATUS_MAP;
+import static com.quanloop.todo.util.GlobalConstant.TodoValidateErrors.*;
 
 @Service
 @RequiredArgsConstructor
@@ -27,11 +30,10 @@ public class TodoService {
     public List<Todo> getAllTodos() {
         return todoRepository.findAll();
     }
-
     @Transactional
     public Todo createTodo(TodoDTO todoDTO) {
         Todo newTodo = this.mapper.map(todoDTO, Todo.class);
-        validateTodoRequest(newTodo);
+        validateCreateTodoRequest(newTodo);
         return todoRepository.save(newTodo);
     }
 
@@ -47,8 +49,8 @@ public class TodoService {
     @Transactional
     public Todo updateTodo(TodoDTO updatedTodoDto) {
         Todo updatedTodo = this.mapper.map(updatedTodoDto, Todo.class);
-        validateTodoRequest(updatedTodo);
         Todo existingTodo = getTodoById(updatedTodo.getId());
+        validateUpdateTodoRequest(updatedTodo,existingTodo);
         existingTodo.setTitle(updatedTodo.getTitle());
         existingTodo.setDescription(updatedTodo.getDescription());
         existingTodo.setStatus(updatedTodo.getStatus());
@@ -60,16 +62,30 @@ public class TodoService {
         todoRepository.deleteById(id);
     }
 
-    private void validateTodoRequest(Todo todo) throws BadClientException {
+    private void validateCreateTodoRequest(Todo todo) throws BadClientException {
         validateTodoStatus(todo.getStatus());
+        validateInitialStatus(todo.getStatus());
+    }
+
+    private void validateUpdateTodoRequest(Todo todo,Todo existingTodo) throws BadClientException {
+        validateTodoStatus(todo.getStatus());
+        validateStatusSequence(todo.getStatus(),existingTodo.getStatus());
     }
 
     private void validateTodoStatus(String value) {
-        for (GlobalConstant.TodoStatus status : GlobalConstant.TodoStatus.values()) {
-            if (status.name().equals(value)) {
-                return;
-            }
+        if (!STATUS_MAP.containsKey(value)) {
+            throw new BadClientException(STATUS_IS_NOT_VALID);
         }
-        throw new BadClientException(STATUS_IS_NOT_VALID);
+    }
+    private void validateStatusSequence(String newStatus, String oldStatus) {
+        if (!(STATUS_MAP.get(newStatus) >= STATUS_MAP.get(oldStatus))) {
+            throw new BadClientException(STATUS_CAN_NOT_CHANGE + " from " + oldStatus + " to " + newStatus);
+        }
+    }
+
+    private void validateInitialStatus(String newStatus) {
+        if ((STATUS_MAP.get(newStatus) > INITIAL_STATUS)) {
+            throw new BadClientException(INITIAL_STATUS_NOT_VALID + newStatus );
+        }
     }
 }

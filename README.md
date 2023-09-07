@@ -8,7 +8,7 @@ Run command :
 Postgres DB, you have to execute below commands. Application should work in docker support environment
 
 Go to the root directory and execute below commands
-1. mvn package
+1. ./mvnw clean package
 2. docker-compose up --build
 
 ### Approach 2
